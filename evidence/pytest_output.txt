@@ -1,0 +1,47 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.7.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /home/claude/expense-agent
+plugins: anyio-4.15.1
+collecting ... collected 38 items
+
+tests/test_agent.py::test_loop_calls_tool_then_answers PASSED            [  2%]
+tests/test_agent.py::test_max_steps_stops_runaway_agent PASSED           [  5%]
+tests/test_agent.py::test_duplicate_call_is_refused PASSED               [  7%]
+tests/test_agent.py::test_unknown_tool_does_not_crash PASSED             [ 10%]
+tests/test_agent.py::test_write_tool_needs_approval PASSED               [ 13%]
+tests/test_agent.py::test_conversation_memory_kept_between_questions PASSED [ 15%]
+tests/test_agent.py::test_e2e_food_question_numbers_are_grounded PASSED  [ 18%]
+tests/test_agent.py::test_e2e_budget_question_flags_overspending PASSED  [ 21%]
+tests/test_agent.py::test_e2e_last_month_resolves_to_august PASSED       [ 23%]
+tests/test_agent.py::test_e2e_set_budget_with_approval PASSED            [ 26%]
+tests/test_agent.py::test_prompt_injection_text_is_passed_as_labelled_data PASSED [ 28%]
+tests/test_agent.py::test_injection_does_not_change_budget_answer PASSED [ 31%]
+tests/test_agent.py::test_no_api_key_committed_in_source PASSED          [ 34%]
+tests/test_agent.py::test_gemini_adapter_builds_valid_messages PASSED    [ 36%]
+tests/test_agent.py::test_e2e_human_feedback_shrinks_review_queue PASSED [ 39%]
+tests/test_data_and_tools.py::test_sample_loads_every_row PASSED         [ 42%]
+tests/test_data_and_tools.py::test_invalid_rows_are_skipped_not_stored PASSED [ 44%]
+tests/test_data_and_tools.py::test_missing_column_is_rejected PASSED     [ 47%]
+tests/test_data_and_tools.py::test_keyword_rules[Swiggy Order-Food & Dining] PASSED [ 50%]
+tests/test_data_and_tools.py::test_keyword_rules[Uber Trip-Transport] PASSED [ 52%]
+tests/test_data_and_tools.py::test_keyword_rules[BESCOM Electricity Bill-Bills & Utilities] PASSED [ 55%]
+tests/test_data_and_tools.py::test_keyword_rules[House Rent - Landlord Transfer-Rent] PASSED [ 57%]
+tests/test_data_and_tools.py::test_keyword_rules[Coca Cola vending machine-Other] PASSED [ 60%]
+tests/test_data_and_tools.py::test_unknown_merchant_goes_to_review PASSED [ 63%]
+tests/test_data_and_tools.py::test_llm_fallback_and_invalid_llm_output PASSED [ 65%]
+tests/test_data_and_tools.py::test_human_feedback_is_learned PASSED      [ 68%]
+tests/test_data_and_tools.py::test_summary_matches_ground_truth PASSED   [ 71%]
+tests/test_data_and_tools.py::test_budget_status PASSED                  [ 73%]
+tests/test_data_and_tools.py::test_anomaly_detector_finds_the_smartphone PASSED [ 76%]
+tests/test_data_and_tools.py::test_compare_months PASSED                 [ 78%]
+tests/test_data_and_tools.py::test_find_transactions_filters PASSED      [ 81%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[get_spending_summary-args0] PASSED [ 84%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[get_spending_summary-args1] PASSED [ 86%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[set_budget-args2] PASSED [ 89%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[set_budget-args3] PASSED [ 92%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[find_transactions-args4] PASSED [ 94%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[get_spending_summary-args5] PASSED [ 97%]
+tests/test_data_and_tools.py::test_bad_tool_calls_return_errors_not_exceptions[delete_everything-args6] PASSED [100%]
+
+============================== 38 passed in 0.64s ==============================
