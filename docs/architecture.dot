@@ -4,7 +4,7 @@ digraph G {
   edge [fontname="Helvetica", fontsize=9, color="#4a5568"];
   user [label="User\n(Streamlit web app / CLI)", fillcolor="#e6fffa"];
   subgraph cluster_agent { label="Agent loop  (agent.py)  —  ReAct: reason → act → observe"; fontname="Helvetica-Bold"; fontsize=11; style="rounded,dashed"; color="#2b6cb0";
-    llm [label="LLM planner\nGemini 2.5 Flash (function calling)\nor OfflinePlanner (no key)", fillcolor="#ebf8ff"];
+    llm [label="LLM planner\nGemini Flash (function calling)\nor OfflinePlanner (no key)", fillcolor="#ebf8ff"];
     guard [label="Guardrails in code\n• max 6 steps\n• duplicate-call block\n• unknown tool → error\n• approval for writes", fillcolor="#fffaf0"];
   }
   subgraph cluster_tools { label="Tools  (tools.py)"; fontname="Helvetica-Bold"; fontsize=11; style="rounded"; color="#718096";

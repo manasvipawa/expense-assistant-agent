@@ -11,6 +11,7 @@ The LLM (Google Gemini) decides **which tools to call**. The tools do every calc
 - **9 tools**: spending summary, budget check, transaction search, z-score anomaly detection, month comparison, review queue, set budget, confirm category, available months.
 - **Human in the loop**: changing a budget or a category only happens after the user approves it. Categories the system is unsure about go to a review queue, and each correction is learned for future statements.
 - **Safety**: CSV rows are validated before loading, SQL queries are parameterised, the API key is kept in `.env`, and transaction text is passed to the model as labelled data. A description in the sample data contains a prompt-injection attempt, and the tests check that it has no effect.
+- **Resilient to model changes**: tries `gemini-3.8-flash` first and moves to the next available Flash model if one is retired or not enabled for your key; if Gemini fails, the agent answers with the offline planner and says so.
 - **Works without an API key**: an `OfflinePlanner` follows the same protocol as Gemini, so the app, the demo and the tests all run without a key.
 
 ## Setup
@@ -26,7 +27,7 @@ streamlit run app.py                 # web app
 python cli.py --trace                # chat in the terminal and see every tool call
 python cli.py --offline -q "Any unusual transactions?"
 python scripts/run_demo.py           # scripted demo -> evidence/demo_transcript_<mode>.md
-python -m pytest -v                  # 38 tests
+python -m pytest -v                  # 43 tests
 ```
 
 To use your own data, upload a CSV with the columns `date` (YYYY-MM-DD), `description` and `amount`.

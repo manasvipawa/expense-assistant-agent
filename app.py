@@ -30,8 +30,14 @@ with st.sidebar:
         st.session_state.update(agent=agent, store=store, report=report, chat=[])
     st.session_state.allow_writes = allow_writes
     r = st.session_state.report
+    llm = st.session_state.agent.llm
+    model = getattr(llm, "model", None)
     st.caption(f"{r['loaded']} transactions loaded, {len(r['skipped'])} rows skipped. "
-               f"LLM: {type(st.session_state.agent.llm).__name__}")
+               f"LLM: {type(llm).__name__}{f' ({model})' if model else ''}")
+    if r["skipped"]:
+        with st.expander("Skipped rows"):
+            for line, why in r["skipped"]:
+                st.write(f"Line {line}: {why}")
 
 store = st.session_state.store
 with st.expander("Spending by month and category"):

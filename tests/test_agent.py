@@ -121,6 +121,7 @@ def test_gemini_adapter_builds_valid_messages():
     from expense_agent.gemini import GeminiLLM
     from expense_agent.tools import DECLARATIONS
     llm = GeminiLLM(DECLARATIONS, api_key="dummy-key-for-offline-test")
+    assert llm.model == "gemini-3.8-flash"  # current model tried first, not the retired 2.5
     assert len(llm.config.tools[0].function_declarations) == len(DECLARATIONS)
     history = [{"role": "user", "text": "Am I over budget?"},
                {"role": "model", "turn": Turn(tool_calls=[ToolCall("get_available_months", {})])},
@@ -139,3 +140,74 @@ def test_e2e_human_feedback_shrinks_review_queue():
     r = agent.run(f"Transaction {chai_id} is Food & Dining")
     assert "updated 2 transaction(s)" in r.answer
     assert agent.run("Which transactions need review?").answer.startswith("2 transaction(s)")
+
+
+# ---------- resilience: model availability and LLM failures ----------
+class _FakeModels:
+    """Stands in for client.models; fails for some model names."""
+    def __init__(self, behaviour):
+        self.behaviour, self.calls = behaviour, []
+
+    def generate_content(self, model, contents, config):
+        from google.genai import errors
+        self.calls.append(model)
+        b = self.behaviour.get(model, "ok")
+        if b == "gone":
+            raise errors.ClientError(404, {"error": {"code": 404, "status": "NOT_FOUND",
+                                     "message": f"This model models/{model} is no longer available to new users."}})
+        if b == "quota":
+            raise errors.ClientError(429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+                                     "message": "Quota exceeded"}})
+        return f"response from {model}"
+
+
+class _FakeClient:
+    def __init__(self, behaviour):
+        self.models = _FakeModels(behaviour)
+
+
+def test_router_skips_retired_models_and_remembers_working_one():
+    from expense_agent.gemini import ModelRouter
+    client = _FakeClient({"old-model": "gone"})
+    router = ModelRouter(client, models=["old-model", "new-model"], sleep=lambda s: None)
+    assert router.generate("hi", None) == "response from new-model"
+    assert router.generate("again", None) == "response from new-model"
+    assert client.models.calls == ["old-model", "new-model", "new-model"]  # old model tried only once
+    assert router.skipped[0][0] == "old-model"
+
+
+def test_router_retries_rate_limit_then_gives_up():
+    import pytest
+    from google.genai import errors
+    from expense_agent.gemini import ModelRouter
+    client = _FakeClient({"m": "quota"})
+    router = ModelRouter(client, models=["m"], sleep=lambda s: None)
+    with pytest.raises(errors.ClientError):
+        router.generate("hi", None)
+    assert client.models.calls == ["m", "m", "m"]  # 3 attempts with back-off
+
+
+def test_router_reports_when_no_model_is_available():
+    import pytest
+    from expense_agent.gemini import ModelRouter
+    router = ModelRouter(_FakeClient({"a": "gone", "b": "gone"}), models=["a", "b"], sleep=lambda s: None)
+    with pytest.raises(RuntimeError, match="None of the Gemini models"):
+        router.generate("hi", None)
+
+
+class _BrokenLLM:
+    def next(self, history):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED quota exceeded")
+
+
+def test_agent_falls_back_to_offline_planner_when_gemini_fails(tools):
+    from expense_agent.offline import OfflinePlanner
+    r = Agent(_BrokenLLM(), tools, fallback_llm=OfflinePlanner()).run("Am I over budget this month?")
+    assert r.stopped_reason == "answered"
+    assert "Shopping: OVER" in r.answer and "Gemini was unavailable" in r.answer
+    assert r.trace[0]["type"] == "llm_error"
+
+
+def test_agent_without_fallback_returns_message_instead_of_crashing(tools):
+    r = Agent(_BrokenLLM(), tools).run("hi")
+    assert r.stopped_reason == "llm_error" and "not available" in r.answer

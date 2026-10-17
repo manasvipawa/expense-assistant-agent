@@ -56,18 +56,31 @@ def deny_all(name, args):
 
 
 class Agent:
-    def __init__(self, llm, tools, approve: Approver = deny_all, max_steps: int = 6):
+    def __init__(self, llm, tools, approve: Approver = deny_all, max_steps: int = 6, fallback_llm=None):
         self.llm, self.tools, self.approve, self.max_steps = llm, tools, approve, max_steps
+        self.fallback_llm = fallback_llm  # used if the main LLM fails (quota, outage, bad key)
         self.history = []  # kept across questions, so follow-up questions have context
 
     def run(self, question: str) -> AgentResult:
         self.history.append({"role": "user", "text": question})
-        trace, seen = [], set()
+        trace, seen, notice = [], set(), ""
+        llm = self.llm
         for step in range(1, self.max_steps + 1):
-            turn = self.llm.next(self.history)
+            try:
+                turn = llm.next(self.history)
+            except Exception as e:  # the LLM is an external service: never crash the app
+                reason = f"{type(e).__name__}: {getattr(e, 'message', None) or e}"
+                trace.append({"step": step, "type": "llm_error", "text": reason[:500]})
+                if self.fallback_llm is None or llm is self.fallback_llm:
+                    msg = f"Sorry, the language model is not available right now ({reason[:300]})."
+                    return AgentResult(msg, trace, step, "llm_error")
+                llm, seen = self.fallback_llm, set()
+                notice = (f"\n\n_Note: Gemini was unavailable ({reason[:200]}), so this answer "
+                          "came from the offline rule-based planner._")
+                turn = llm.next(self.history)
             self.history.append({"role": "model", "turn": turn})
             if not turn.tool_calls:
-                answer = (turn.text or "").strip() or "(no answer)"
+                answer = ((turn.text or "").strip() or "(no answer)") + notice
                 trace.append({"step": step, "type": "answer", "text": answer})
                 return AgentResult(answer, trace, step, "answered")
             results = []

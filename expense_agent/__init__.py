@@ -32,13 +32,15 @@ def build_agent(csv_path=SAMPLE_CSV, budgets_path=SAMPLE_BUDGETS, offline=None,
     store = Store(db_path)
     classifier = None
     if not offline:
-        from .gemini import GeminiLLM, make_gemini_classifier
-        classifier = make_gemini_classifier()
-        llm = GeminiLLM(DECLARATIONS)
+        from .gemini import GeminiLLM, ModelRouter, _client, make_gemini_classifier
+        router = ModelRouter(_client())  # shared, so the working model is found only once
+        classifier = make_gemini_classifier(router=router)
+        llm = GeminiLLM(DECLARATIONS, router=router)
     else:
         llm = OfflinePlanner()
     load_report = store.load_csv(csv_path, llm_classifier=classifier)
     if budgets_path:
         store.load_budgets(budgets_path)
-    agent = Agent(llm, ExpenseTools(store), approve=approve)
+    agent = Agent(llm, ExpenseTools(store), approve=approve,
+                  fallback_llm=None if offline else OfflinePlanner())
     return agent, store, load_report
