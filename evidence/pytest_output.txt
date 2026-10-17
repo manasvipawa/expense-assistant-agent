@@ -62,4 +62,4 @@ tests/test_data_and_tools.py::test_simulate_savings_rejects_bad_input[args3] PAS
 tests/test_data_and_tools.py::test_simulate_savings_rejects_bad_input[args4] PASSED [ 98%]
 tests/test_data_and_tools.py::test_simulate_savings_unknown_merchant PASSED [100%]
 
-============================== 56 passed in 0.66s ==============================
+============================== 56 passed in 0.71s ==============================
