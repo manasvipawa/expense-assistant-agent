@@ -2,13 +2,13 @@ digraph G {
   rankdir=TB; bgcolor="white"; nodesep=0.3; ranksep=0.45;
   node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, color="#4a5568", fillcolor="#f7fafc"];
   edge [fontname="Helvetica", fontsize=9, color="#4a5568"];
-  user [label="User\n(Streamlit web app / CLI)", fillcolor="#e6fffa"];
+  user [label="User\n(Streamlit dashboard / CLI)", fillcolor="#e6fffa"];
   subgraph cluster_agent { label="Agent loop  (agent.py)  —  ReAct: reason → act → observe"; fontname="Helvetica-Bold"; fontsize=11; style="rounded,dashed"; color="#2b6cb0";
     llm [label="LLM planner\nGemini Flash (function calling)\nor OfflinePlanner (no key)", fillcolor="#ebf8ff"];
     guard [label="Guardrails in code\n• max 6 steps\n• duplicate-call block\n• unknown tool → error\n• approval for writes", fillcolor="#fffaf0"];
   }
   subgraph cluster_tools { label="Tools  (tools.py)"; fontname="Helvetica-Bold"; fontsize=11; style="rounded"; color="#718096";
-    read [label="Read tools\nget_available_months · get_spending_summary\ncheck_budgets · find_transactions\ndetect_anomalies (z-score) · compare_months\nget_review_queue"];
+    read [label="Read tools\nget_available_months · get_spending_summary\ncheck_budgets · find_transactions\ndetect_anomalies (z-score) · compare_months\nsimulate_savings (what-if) · get_review_queue"];
     write [label="Write tools (need approval)\nset_budget · confirm_category", fillcolor="#fff5f5"];
   }
   csv [label="Bank statement CSV\n(validated on load)", shape=note];

@@ -47,6 +47,9 @@ def detect_intent(q):
         return "set_budget"
     if re.search(r"transaction\s*#?\d+\s+(is|as|should be|to)\b", q):
         return "confirm"
+    if re.search(r"what if|what-if|if i (cut|reduce|stop|halve|spend less)|cut (down )?(my |on )?\w+.* by|"
+                 r"how much (would|could|will|can) i save|save if", q):
+        return "whatif"
     if re.search(r"unusual|anomal|suspicious|strange|odd|outlier", q):
         return "anomalies"
     if re.search(r"compare|compared|\bvs\b|versus|than last|change from", q):
@@ -115,11 +118,12 @@ class OfflinePlanner:
             "compare": ("compare_months", self._compare_args(named, available)),
             "set_budget": ("set_budget", self._budget_args(question)),
             "confirm": ("confirm_category", self._confirm_args(question)),
+            "whatif": ("simulate_savings", self._whatif_args(question)),
         }[intent]
         if tool not in results:
             if args is None:
-                return Turn(text="I could not work out the details. Try 'Set my Food budget to 7000' "
-                                 "or 'Transaction 87 is Food & Dining'.")
+                return Turn(text="I could not work out the details. Try 'Set my Food budget to 7000', "
+                                 "'Transaction 87 is Food & Dining' or 'What if I cut Swiggy by half?'.")
             return Turn(tool_calls=[ToolCall(tool, args)])
 
         # Step 3: write the answer from the tool result
@@ -143,6 +147,30 @@ class OfflinePlanner:
             a, b = (available[-2], available[-1]) if len(available) >= 2 else (available[-1],) * 2
         return {"month_a": a, "month_b": b}
 
+    def _whatif_args(self, q):
+        ql = q.lower()
+        if re.search(r"\b(stop|quit|cancel|no more|completely)\b", ql):
+            cut = 100.0
+        elif re.search(r"\bhalf|halve\b", ql):
+            cut = 50.0
+        elif m := re.search(r"(\d+(?:\.\d+)?)\s*(%|percent|per cent)", ql):
+            cut = float(m.group(1))
+        elif "third" in ql:
+            cut = 33.0
+        elif "quarter" in ql:
+            cut = 25.0
+        else:
+            cut = 50.0
+        from .categorizer import KEYWORD_RULES
+        merchants = sorted((k for ks in KEYWORD_RULES.values() for k in ks), key=len, reverse=True)
+        for m in merchants:
+            if len(m) > 3 and re.search(rf"\b{re.escape(m)}\b", ql):
+                return {"cut_percent": cut, "merchant": m}
+        cat = detect_category(q)
+        if not cat:
+            return None
+        return {"cut_percent": cut, "category": cat}
+
     def _confirm_args(self, q):
         m = re.search(r"transaction\s*#?(\d+)", q.lower())
         cat = detect_category(q)
@@ -161,6 +189,13 @@ class OfflinePlanner:
     def _compose(self, intent, q, r):
         if "error" in r:
             return f"I could not complete that: {r['error']}."
+        if r.get("status") == "pending_approval":
+            p = r["proposed"]
+            if r["tool"] == "set_budget":
+                what = f"set your {p['category']} budget to {inr(p['amount'])} a month"
+            else:
+                what = f"mark transaction #{p['transaction_id']} as {p['category']} and remember this merchant"
+            return f"I've prepared this change: {what}. Please approve or reject it below; nothing has changed yet."
         if intent == "summary":
             label, cat = month_label(r["month"]), detect_category(q)
             if cat:
@@ -231,6 +266,25 @@ class OfflinePlanner:
             for t in r["transactions"][:5]:
                 lines.append(f"- {t['date']} {inr(t['amount'])} {t['description_data']}")
             return "\n".join(lines)
+        if intent == "whatif":
+            name = r["target"].title() if r["target_type"] == "merchant" else r["target"]
+            action = (f"stopped {name} completely" if r["cut_percent"] >= 100
+                      else f"cut {name} spending by {r['cut_percent']:.0f}%")
+            lines = [f"If you {action}, you would save about "
+                     f"{inr(r['saving_per_month'])} a month: {inr(r['saving_3_months'])} in 3 months, "
+                     f"{inr(r['saving_6_months'])} in 6 months and {inr(r['saving_12_months'])} in a year.",
+                     f"This is based on your average of {inr(r['average_monthly_spend'])} a month "
+                     f"over {r['months_of_data']} month(s)."]
+            if r["budget"]:
+                before, after = r["budget_status_before"], r["budget_status_after"]
+                verdict = {("over", "ok"): "back within budget", ("over", "warning"): "back within budget, but close to the limit",
+                           ("over", "over"): "still over budget"}.get(
+                    (before, after), {"ok": "within budget", "warning": "close to the limit",
+                                      "over": "over budget"}.get(after, after))
+                lines.append(f"In {month_label(r['latest_month'])}, {r['budget_category']} would drop from "
+                             f"{inr(r['latest_category_spend'])} to {inr(r['latest_category_spend_after_cut'])}, "
+                             f"which is {verdict} ({inr(r['budget'])}).")
+            return "\n\n".join(lines)
         if intent == "confirm":
             n = r["updated"]
             return (f"Saved. I updated {n} transaction(s) and will remember this merchant "

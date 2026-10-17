@@ -1,5 +1,5 @@
 # Demo transcript (OfflinePlanner)
-Run at 2026-10-17 06:04. Loaded 116 transactions, 0 skipped.
+Run at 2026-10-17 06:19. Loaded 116 transactions, 0 skipped.
 
 ## Test 1: How much did I spend on food in September?
 
@@ -65,7 +65,24 @@ You spent Rs. 22,932 more in September 2026 (Rs. 52,127) than in August 2026 (Rs
 - Other: up Rs. 1,169 (+974%)
 ```
 
-## Test 5: Which transactions need review?
+## Test 5: What if I cut Swiggy by half?
+
+**Tool calls:**
+
+- step 1: `get_available_months({})` → `{"months": ["2026-07", "2026-08", "2026-09"], "latest": "2026-09"}`
+- step 2: `simulate_savings({"cut_percent": 50.0, "merchant": "swiggy"})` → `{"target": "swiggy", "target_type": "merchant", "cut_percent": 50.0, "months_of_data": 3, "average_monthly_spend": 2774.0, "saving_per_month": 1387.0, "saving_3_months": 4161.0, "saving_6_months": 832…`
+
+**Agent answer** (3 LLM steps, answered):
+
+```
+If you cut Swiggy spending by 50%, you would save about Rs. 1,387 a month: Rs. 4,161 in 3 months, Rs. 8,322 in 6 months and Rs. 16,644 in a year.
+
+This is based on your average of Rs. 2,774 a month over 3 month(s).
+
+In September 2026, Food & Dining would drop from Rs. 7,167 to Rs. 4,890, which is back within budget (Rs. 6,000).
+```
+
+## Test 6: Which transactions need review?
 
 **Tool calls:**
 
@@ -84,7 +101,7 @@ You spent Rs. 22,932 more in September 2026 (Rs. 52,127) than in August 2026 (Rs
 Tell me the right category, e.g. 'transaction 12 is Food & Dining'.
 ```
 
-## Test 6: Transaction 87 is Food & Dining
+## Test 7: Transaction 87 is Food & Dining
 
 **Tool calls:**
 
@@ -98,7 +115,7 @@ Tell me the right category, e.g. 'transaction 12 is Food & Dining'.
 Saved. I updated 2 transaction(s) and will remember this merchant for future statements.
 ```
 
-## Test 7: Which transactions need review?
+## Test 8: Which transactions need review?
 
 **Tool calls:**
 
@@ -115,7 +132,7 @@ Saved. I updated 2 transaction(s) and will remember this merchant for future sta
 Tell me the right category, e.g. 'transaction 12 is Food & Dining'.
 ```
 
-## Test 8: Set my Shopping budget to 5000
+## Test 9: Set my Shopping budget to 5000
 
 **Tool calls:**
 
@@ -129,7 +146,7 @@ Tell me the right category, e.g. 'transaction 12 is Food & Dining'.
 I could not complete that: the user did not approve this change; nothing was modified.
 ```
 
-## Test 9: Set my Food budget to 7000
+## Test 10: Set my Food budget to 7000
 
 **Tool calls:**
 

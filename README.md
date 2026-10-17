@@ -4,11 +4,16 @@ An agentic AI assistant that reads a bank-statement CSV, puts each transaction i
 
 The LLM (Google Gemini) decides **which tools to call**. The tools do every calculation, so the numbers in an answer come from the data and are not made up by the model.
 
+**Live app:** https://expense-assistant-agent.streamlit.app
+
+![dashboard](evidence/ui_dashboard.png)
+
 ![architecture](docs/architecture.png)
 
 ## Features
 - **ReAct agent loop**: the agent reasons, calls a tool, reads the result and repeats until it can answer. The loop is capped at 6 steps.
-- **9 tools**: spending summary, budget check, transaction search, z-score anomaly detection, month comparison, review queue, set budget, confirm category, available months.
+- **10 tools**: spending summary, budget check, transaction search, z-score anomaly detection, month comparison, **what-if savings simulator**, review queue, set budget, confirm category, available months.
+- **Dashboard UI**: KPI tiles, budget progress bars, spending by category, monthly trend, unusual transactions; chat with a step-by-step timeline of each answer and Approve / Reject buttons; interactive what-if slider; review queue.
 - **Human in the loop**: changing a budget or a category only happens after the user approves it. Categories the system is unsure about go to a review queue, and each correction is learned for future statements.
 - **Safety**: CSV rows are validated before loading, SQL queries are parameterised, the API key is kept in `.env`, and transaction text is passed to the model as labelled data. A description in the sample data contains a prompt-injection attempt, and the tests check that it has no effect.
 - **Resilient to model changes**: tries `gemini-3.8-flash` first and moves to the next available Flash model if one is retired or not enabled for your key; if Gemini fails, the agent answers with the offline planner and says so.
@@ -27,7 +32,7 @@ streamlit run app.py                 # web app
 python cli.py --trace                # chat in the terminal and see every tool call
 python cli.py --offline -q "Any unusual transactions?"
 python scripts/run_demo.py           # scripted demo -> evidence/demo_transcript_<mode>.md
-python -m pytest -v                  # 43 tests
+python -m pytest -v                  # 56 tests
 ```
 
 To use your own data, upload a CSV with the columns `date` (YYYY-MM-DD), `description` and `amount`.

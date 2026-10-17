@@ -41,6 +41,13 @@ DECLARATIONS = [
      "description": "Category-by-category spending change between two months.",
      "parameters": {"type": "object", "properties": {"month_a": _month, "month_b": _month},
                     "required": ["month_a", "month_b"]}},
+    {"name": "simulate_savings",
+     "description": "What-if simulator. Estimates how much the user would save by cutting spending on a category OR a merchant by a percentage, over 3, 6 and 12 months, and what that does to the latest month's budget. Use for questions like 'what if I cut Swiggy by half?'. Give either category or merchant, not both.",
+     "parameters": {"type": "object", "properties": {
+         "cut_percent": {"type": "number", "description": "Reduction from 1 to 100 (100 = stop completely)"},
+         "category": _category,
+         "merchant": {"type": "string", "description": "Merchant text to match, e.g. swiggy"}},
+         "required": ["cut_percent"]}},
     {"name": "get_review_queue",
      "description": "Transactions whose category the system is unsure about and which need a human to confirm.",
      "parameters": {"type": "object", "properties": {}}},
@@ -177,6 +184,55 @@ class ExpenseTools:
             "SELECT * FROM transactions WHERE confidence < ? ORDER BY date", (REVIEW_THRESHOLD,))
         return {"count": len(rows), "transactions": [
             {**_txn_view(r), "confidence": r["confidence"]} for r in rows]}
+
+    def simulate_savings(self, cut_percent, category=None, merchant=None):
+        cut = float(cut_percent)
+        if not 0 < cut <= 100:
+            raise ToolError("cut_percent must be between 1 and 100")
+        if (category is None) == (not merchant):
+            raise ToolError("give either a category or a merchant (exactly one)")
+        if category is not None:
+            if category not in CATEGORIES:
+                raise ToolError(f"unknown category {category!r}")
+            where, params, target = "category=?", [category], category
+        else:
+            merchant = str(merchant).strip().lower()[:50]
+            where, params, target = "lower(description) LIKE ?", [f"%{merchant}%"], merchant
+        months = self.store.months()
+        if not months:
+            raise ToolError("no transactions loaded")
+        rows = self.store.query(
+            f"SELECT month, category, SUM(amount) AS total, COUNT(*) AS n FROM transactions "
+            f"WHERE {where} GROUP BY month, category", params)
+        if not rows:
+            return {"target": target, "error": "no matching transactions"}
+        by_month = {m: 0.0 for m in months}
+        for r in rows:
+            by_month[r["month"]] += r["total"]
+        baseline = sum(by_month.values()) / len(months)
+        saving = baseline * cut / 100
+        latest = months[-1]
+        main_cat = category or max(rows, key=lambda r: r["total"])["category"]
+        cat_spent = self._totals(latest).get(main_cat, {}).get("total", 0.0)
+        new_spent = cat_spent - by_month[latest] * cut / 100
+        budget = self.store.budgets().get(main_cat)
+
+        def status(x):
+            if budget is None:
+                return "no budget"
+            return "over" if x > budget else "warning" if 100 * x / budget >= WARNING_PCT else "ok"
+
+        return {
+            "target": target, "target_type": "category" if category else "merchant",
+            "cut_percent": cut, "months_of_data": len(months),
+            "average_monthly_spend": round(baseline, 2),
+            "saving_per_month": round(saving, 2),
+            "saving_3_months": round(saving * 3, 2), "saving_6_months": round(saving * 6, 2),
+            "saving_12_months": round(saving * 12, 2),
+            "latest_month": latest, "budget_category": main_cat, "budget": budget,
+            "latest_category_spend": round(cat_spent, 2), "latest_category_spend_after_cut": round(new_spent, 2),
+            "budget_status_before": status(cat_spent), "budget_status_after": status(new_spent),
+        }
 
     # ----- write tools (approval required) -----
     def set_budget(self, category, amount):

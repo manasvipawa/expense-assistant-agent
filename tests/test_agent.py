@@ -1,4 +1,5 @@
 """Tests for the agent loop: tool use, guardrails, approval and end-to-end answers."""
+import pytest
 import re
 from pathlib import Path
 
@@ -211,3 +212,30 @@ def test_agent_falls_back_to_offline_planner_when_gemini_fails(tools):
 def test_agent_without_fallback_returns_message_instead_of_crashing(tools):
     r = Agent(_BrokenLLM(), tools).run("hi")
     assert r.stopped_reason == "llm_error" and "not available" in r.answer
+
+
+@pytest.mark.parametrize("question,args", [
+    ("What if I cut Swiggy by half?", {"cut_percent": 50.0, "merchant": "swiggy"}),
+    ("How much would I save if I stop Uber?", {"cut_percent": 100.0, "merchant": "uber"}),
+    ("What if I reduce shopping by 30%?", {"cut_percent": 30.0, "category": "Shopping"}),
+])
+def test_e2e_what_if_questions(question, args):
+    agent, _, _ = _agent()
+    r = agent.run(question)
+    calls = [t for t in r.trace if t["type"] == "tool"]
+    assert calls[-1]["name"] == "simulate_savings" and calls[-1]["args"] == args
+    assert "you would save about Rs." in r.answer
+
+
+def test_write_tool_can_wait_for_ui_approval(store, tools):
+    call = ToolCall("set_budget", {"category": "Rent", "amount": 20000})
+    r = Agent(ScriptedLLM([Turn(tool_calls=[call]), Turn(text="x")]), tools,
+              approve=lambda n, a: None).run("q")
+    assert r.trace[0]["result"]["status"] == "pending_approval"
+    assert store.budgets()["Rent"] == 15000  # nothing changed until the user clicks Approve
+
+
+def test_e2e_pending_approval_message():
+    agent, store, _ = _agent(approve=lambda n, a: None)
+    r = agent.run("Set my Food budget to 7000")
+    assert "Please approve or reject" in r.answer and store.budgets()["Food & Dining"] == 6000

@@ -19,6 +19,7 @@ SCRIPT = [
     ("Am I over budget this month?", True),
     ("Any unusual transactions?", True),
     ("Compare August and September", True),
+    ("What if I cut Swiggy by half?", True),     # what-if simulator
     ("Which transactions need review?", True),
     ("Transaction 87 is Food & Dining", True),  # human feedback, approved
     ("Which transactions need review?", True),  # queue should now be shorter
@@ -33,7 +34,7 @@ def main():
     a = p.parse_args()
     decision = {"value": True}
     agent, store, report = build_agent(offline=True if a.offline else None,
-                                       approve=lambda n, args: decision["value"])
+                                       approve=lambda n, args: decision["value"])  # CLI-style yes/no approval
     mode = type(agent.llm).__name__
     out = [f"# Demo transcript ({mode})", f"Run at {datetime.now():%Y-%m-%d %H:%M}. "
            f"Loaded {report['loaded']} transactions, {len(report['skipped'])} skipped.", ""]

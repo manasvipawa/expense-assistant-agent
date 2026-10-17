@@ -117,3 +117,38 @@ def test_find_transactions_filters(tools):
 ])
 def test_bad_tool_calls_return_errors_not_exceptions(tools, name, args):
     assert "error" in tools.execute(name, args)
+
+
+# ---------- what-if simulator ----------
+def test_simulate_savings_matches_independent_calculation(tools, raw_rows):
+    out = tools.simulate_savings(cut_percent=50, merchant="swiggy")
+    swiggy = [r for r in raw_rows if "swiggy" in r["description"].lower()]
+    months = {r["date"][:7] for r in raw_rows}
+    avg = sum(r["amount"] for r in swiggy) / len(months)
+    assert out["average_monthly_spend"] == round(avg, 2)
+    assert out["saving_per_month"] == round(avg / 2, 2)
+    assert out["saving_12_months"] == round(avg / 2 * 12, 2)
+    assert out["budget_category"] == "Food & Dining"
+    # halving Swiggy brings September Food back under its 6,000 budget
+    assert (out["budget_status_before"], out["budget_status_after"]) == ("over", "ok")
+
+
+def test_simulate_savings_category_and_stop_completely(tools):
+    out = tools.simulate_savings(cut_percent=100, category="Entertainment")
+    assert out["saving_per_month"] == out["average_monthly_spend"]
+    assert out["latest_category_spend_after_cut"] == 0
+
+
+@pytest.mark.parametrize("args", [
+    {"cut_percent": 0, "category": "Shopping"},
+    {"cut_percent": 150, "category": "Shopping"},
+    {"cut_percent": 50},                                         # no target
+    {"cut_percent": 50, "category": "Shopping", "merchant": "x"},  # two targets
+    {"cut_percent": 50, "category": "Pets"},
+])
+def test_simulate_savings_rejects_bad_input(tools, args):
+    assert "error" in tools.execute("simulate_savings", args)
+
+
+def test_simulate_savings_unknown_merchant(tools):
+    assert "error" in tools.simulate_savings(cut_percent=50, merchant="nonexistent shop")
